@@ -2,8 +2,7 @@
 """
 oracle_linux_cve_fix_fetcher.py
 
-Fetch updated kernel packages from Oracle Linux ELSA advisories for specified
-CVE IDs, Oracle Linux version, and architecture, skipping .src.rpm files.
+Fetch updated kernel packages from Oracle Linux ELSA advisories for specified CVE IDs, Oracle Linux version, and architecture.
 
 Dependencies:
   pip install requests beautifulsoup4
