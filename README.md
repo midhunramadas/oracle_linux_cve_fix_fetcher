@@ -1,7 +1,7 @@
 Oracle Linux CVE Fix Fetcher
 --
 
-Fetch updated kernel packages from Oracle Linux ELSA advisories for specified CVE IDs, Oracle Linux version, and architecture, skipping .src.rpm files.
+Fetch updated packages from Oracle Linux ELSA advisories for specified CVE IDs, Oracle Linux version, and architecture, skipping .src.rpm files.
 
 Dependencies:
 --
