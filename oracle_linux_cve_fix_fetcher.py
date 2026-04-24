@@ -2,7 +2,8 @@
 """
 oracle_linux_cve_fix_fetcher.py
 
-Fetch updated kernel packages from Oracle Linux ELSA advisories for specified CVE IDs, Oracle Linux version, and architecture.
+Fetch updated kernel packages from Oracle Linux ELSA advisories for specified
+CVE IDs, Oracle Linux version, and architecture, skipping .src.rpm files.
 
 Dependencies:
   pip install requests beautifulsoup4
@@ -19,7 +20,7 @@ import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Set
 
 CVE_BASE_URL = "https://linux.oracle.com/cve/"
 
@@ -107,8 +108,7 @@ def get_packages_from_cve(
 def split_base_version(pkg: str) -> Tuple[str, str]:
     """
     Split an RPM filename into (base_name, version-release). Assumes the last
-    two hyphen-separated segments (before .rpm) are version and release;
-    everything before that is the base package name.
+    two hyphen-separated segments (before .rpm) are version and release.
     """
     if pkg.endswith(".rpm"):
         pkg = pkg[:-4]
@@ -148,14 +148,14 @@ def main():
     print(f"Starting processing of {len(cves)} CVE(s) for Oracle Linux {args.version} ({args.arch})...")
 
     output_lines: List[str] = []
-    summary_packages: List[str] = []
+    highest_versions: Dict[str, Tuple[str, str]] = {}
+    base_cves: Dict[str, Set[str]] = {}
     unavailable_cves: List[str] = []
 
     with requests.Session() as session:
         for cve_id in cves:
             output_lines.append(f"\nProcessing {cve_id} for Oracle Linux {args.version} ({args.arch})...")
             elsa_map = get_packages_from_cve(session, cve_id, args.version, args.arch)
-
             if elsa_map is None:
                 output_lines.append("  CVE page not found or not accessible.")
                 unavailable_cves.append(cve_id)
@@ -164,37 +164,47 @@ def main():
                     output_lines.append(f"  {cve_id} – {elsa_id}")
                     for pkg in packages:
                         output_lines.append(f"    {pkg}")
-                    summary_packages.extend(packages)
+                        base, ver = split_base_version(pkg)
+                        if base not in highest_versions or ver > highest_versions[base][1]:
+                            highest_versions[base] = (pkg, ver)
+                        base_cves.setdefault(base, set()).add(cve_id)
             else:
                 output_lines.append("  No packages found (ELSA not found or no matches for version/arch).")
 
-    # Build summary: highest version of each base package
-    if summary_packages:
-        highest_versions: Dict[str, Tuple[str, str]] = {}
-        for pkg in summary_packages:
-            base, ver_rel = split_base_version(pkg)
-            if base not in highest_versions or ver_rel > highest_versions[base][1]:
-                highest_versions[base] = (pkg, ver_rel)
-        final_list = sorted(v[0] for v in highest_versions.values())
-        output_lines.append("\n" + "="*60)
-        output_lines.append("Summary of fixed RPMs (highest versions only):")
-        output_lines.append("="*60)
-        for p in final_list:
-            output_lines.append(f"  {p}")
-        output_lines.append("="*60)
+    # Summary of fixed RPMs in table form with line wrapping for CVE lists
+    if highest_versions:
+        col1_width = 45
+        col2_width = 60
+        separator_line = "=" * 120
+        dashed_line = "-" * 120
+        output_lines.append("\n" + separator_line)
+        header = f"{'Base Package':<{col1_width}} | {'Highest Version (pkg)':<{col2_width}} | CVEs"
+        output_lines.append(header)
+        output_lines.append(dashed_line)
+        for base in sorted(highest_versions.keys()):
+            pkg, _ = highest_versions[base]
+            cve_list = sorted(base_cves.get(base, []))
+            chunks = [cve_list[i:i+5] for i in range(0, len(cve_list), 5)]
+            for idx, chunk in enumerate(chunks):
+                cve_str = ", ".join(chunk)
+                if idx == 0:
+                    output_lines.append(f"{base:<{col1_width}} | {pkg:<{col2_width}} | {cve_str}")
+                else:
+                    output_lines.append(f"{'':<{col1_width}} | {'':<{col2_width}} | {cve_str}")
+        output_lines.append(separator_line)
     else:
-        output_lines.append("\n" + "="*60)
+        output_lines.append("\n" + "=" * 120)
         output_lines.append("Summary: no packages found for the given CVEs/version/arch.")
-        output_lines.append("="*60)
+        output_lines.append("=" * 120)
 
     # Summary of unavailable CVEs
     if unavailable_cves:
-        output_lines.append("\n" + "="*60)
-        output_lines.append("Summary of CVE IDs not available or not accessible:")
-        output_lines.append("="*60)
+        output_lines.append("\n" + "="*120)
+        output_lines.append("CVE IDs not available or not accessible:")
+        output_lines.append("-"*120)
         for cve in sorted(unavailable_cves):
             output_lines.append(f"  {cve}")
-        output_lines.append("="*60)
+        output_lines.append("="*120)
 
     elapsed = time.perf_counter() - start_time
     output_lines.append(f"\nFinished in {elapsed:.2f} seconds.")
@@ -203,7 +213,6 @@ def main():
         with open(args.output_file, "w") as out_file:
             out_file.write("\n".join(output_lines))
         print(f"Results written to {args.output_file}")
-        # Also print time to console along with file notification
         print(f"Finished in {elapsed:.2f} seconds.")
     else:
         print("\n".join(output_lines))
