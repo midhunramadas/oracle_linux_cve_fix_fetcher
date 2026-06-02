@@ -189,7 +189,7 @@ def main():
                 elsas_sorted = sorted(info['elsas'])
                 cves_sorted = sorted(info['cves'])
                 # chunk CVEs into groups of 5 per line
-                cve_chunks = [cves_sorted[i:i+5] for i in range(0, len(cves_sorted), 5)]
+                cve_chunks = [cves_sorted[i:i+3] for i in range(0, len(cves_sorted), 3)]
                 elsas_str = ", ".join(elsas_sorted)
                 for idx, chunk in enumerate(cve_chunks):
                     cve_str = ", ".join(chunk)
