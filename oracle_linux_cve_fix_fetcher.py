@@ -148,8 +148,8 @@ def main():
     print(f"Starting processing of {len(cves)} CVE(s) for Oracle Linux {args.version} ({args.arch})...")
 
     output_lines: List[str] = []
-    highest_versions: Dict[str, Tuple[str, str]] = {}
-    base_cves: Dict[str, Set[str]] = {}
+    # base_versions: base -> version -> {'cves': set(), 'elsas': set()}
+    base_versions: Dict[str, Dict[str, Dict[str, Set[str]]]] = {}
     unavailable_cves: List[str] = []
 
     with requests.Session() as session:
@@ -165,32 +165,39 @@ def main():
                     for pkg in packages:
                         output_lines.append(f"    {pkg}")
                         base, ver = split_base_version(pkg)
-                        if base not in highest_versions or ver > highest_versions[base][1]:
-                            highest_versions[base] = (pkg, ver)
-                        base_cves.setdefault(base, set()).add(cve_id)
+                        base_versions.setdefault(base, {}).setdefault(ver, {'cves': set(), 'elsas': set()})
+                        base_versions[base][ver]['cves'].add(cve_id)
+                        base_versions[base][ver]['elsas'].add(elsa_id)
             else:
                 output_lines.append("  No packages found (ELSA not found or no matches for version/arch).")
 
-    # Summary of fixed RPMs in table form with line wrapping for CVE lists
-    if highest_versions:
+    # Summary of fixed RPMs in table form with ELSA IDs and line wrapping for CVEs
+    if base_versions:
         col1_width = 45
         col2_width = 60
+        col3_width = 20
         separator_line = "=" * 120
         dashed_line = "-" * 120
         output_lines.append("\n" + separator_line)
-        header = f"{'Base Package':<{col1_width}} | {'Highest Version (pkg)':<{col2_width}} | CVEs"
+        header = f"{'Base Package':<{col1_width}} | {'Version (pkg)':<{col2_width}} | {'ELSAs':<{col3_width}} | CVEs"
         output_lines.append(header)
         output_lines.append(dashed_line)
-        for base in sorted(highest_versions.keys()):
-            pkg, _ = highest_versions[base]
-            cve_list = sorted(base_cves.get(base, []))
-            chunks = [cve_list[i:i+5] for i in range(0, len(cve_list), 5)]
-            for idx, chunk in enumerate(chunks):
-                cve_str = ", ".join(chunk)
-                if idx == 0:
-                    output_lines.append(f"{base:<{col1_width}} | {pkg:<{col2_width}} | {cve_str}")
-                else:
-                    output_lines.append(f"{'':<{col1_width}} | {'':<{col2_width}} | {cve_str}")
+        for base in sorted(base_versions.keys()):
+            versions = base_versions[base]
+            for version in sorted(versions.keys()):
+                info = base_versions[base][version]
+                elsas_sorted = sorted(info['elsas'])
+                cves_sorted = sorted(info['cves'])
+                # chunk CVEs into groups of 5 per line
+                cve_chunks = [cves_sorted[i:i+5] for i in range(0, len(cves_sorted), 5)]
+                elsas_str = ", ".join(elsas_sorted)
+                for idx, chunk in enumerate(cve_chunks):
+                    cve_str = ", ".join(chunk)
+                    if idx == 0:
+                        output_lines.append(f"{base:<{col1_width}} | {version:<{col2_width}} | {elsas_str:<{col3_width}} | {cve_str}")
+                    else:
+                        output_lines.append(f"{'':<{col1_width}} | {'':<{col2_width}} | {'':<{col3_width}} | {cve_str}")
+            output_lines.append(dashed_line)
         output_lines.append(separator_line)
     else:
         output_lines.append("\n" + "=" * 120)
