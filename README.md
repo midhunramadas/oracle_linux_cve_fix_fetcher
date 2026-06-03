@@ -8,8 +8,12 @@ Dependencies:
 ```
   pip install requests beautifulsoup4
 ```
-
-Options:
+Usage
+-----
+```
+python oracle_linux_cve_fix_fetcher.py [-h] [--cve CVE] [--cve-file CVE_FILE] --version VERSION --arch ARCH [--output-file OUTPUT_FILE]
+```
+Arguments:
 -----
 ```
   -h, --help                  show this help message and exit
