@@ -176,8 +176,8 @@ def main():
         col1_width = 45
         col2_width = 60
         col3_width = 20
-        separator_line = "=" * 120
-        dashed_line = "-" * 120
+        separator_line = "=" * 150
+        dashed_line = "-" * 150
         output_lines.append("\n" + separator_line)
         header = f"{'Base Package':<{col1_width}} | {'Version (pkg)':<{col2_width}} | {'ELSAs':<{col3_width}} | CVEs"
         output_lines.append(header)
@@ -188,7 +188,7 @@ def main():
                 info = base_versions[base][version]
                 elsas_sorted = sorted(info['elsas'])
                 cves_sorted = sorted(info['cves'])
-                # chunk CVEs into groups of 5 per line
+                # chunk CVEs into groups of 3 per line
                 cve_chunks = [cves_sorted[i:i+3] for i in range(0, len(cves_sorted), 3)]
                 elsas_str = ", ".join(elsas_sorted)
                 for idx, chunk in enumerate(cve_chunks):
@@ -200,18 +200,18 @@ def main():
             output_lines.append(dashed_line)
         output_lines.append(separator_line)
     else:
-        output_lines.append("\n" + "=" * 120)
+        output_lines.append("\n" + "=" * 150)
         output_lines.append("Summary: no packages found for the given CVEs/version/arch.")
-        output_lines.append("=" * 120)
+        output_lines.append("=" * 150)
 
     # Summary of unavailable CVEs
     if unavailable_cves:
-        output_lines.append("\n" + "="*120)
+        output_lines.append("\n" + "="*150)
         output_lines.append("CVE IDs not available or not accessible:")
-        output_lines.append("-"*120)
+        output_lines.append("-"*150)
         for cve in sorted(unavailable_cves):
             output_lines.append(f"  {cve}")
-        output_lines.append("="*120)
+        output_lines.append("="*150)
 
     elapsed = time.perf_counter() - start_time
     output_lines.append(f"\nFinished in {elapsed:.2f} seconds.")
